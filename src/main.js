@@ -1,41 +1,86 @@
-
-
 import iziToast from "izitoast";
 import "izitoast/dist/css/iziToast.min.css";
+import SimpleLightbox from "simplelightbox";
+import "simplelightbox/dist/simple-lightbox.min.css";
 
 const formEl = document.querySelector('.js-search-form')
-const inputEl = document.querySelector('[type="text"]')
-const listEl = document.querySelector('.list')
+const inputEl = document.querySelector('input')
+const galleryEl = document.querySelector('.gallery')
 
+let gallery = new SimpleLightbox('.gallery a', {
+    captions: true,
+    captionDelay: 250,
+    fadeSpeed: 250,
+    captionSelector: "img",
+    captionsData: 'alt',
+    captionPosition: 'bottom',
+});
 
-function markup(obj) {
-    const mamba = obj.hits.map(item => `
-    <li> <img src="${item.largeImageURL}"width="360px" alt="${item.tags}"><p>likes: ${item.likes}</p></li>
-    `).join("");
-    listEl.style.display = 'flex'
-    listEl.style.flexWrap = 'wrap'
-    listEl.style.margin = '15 px'
-    return listEl.innerHTML = mamba;
-};
+function promesUrl() {
+    const urlFromPixaby = new URLSearchParams({
+        key: '41648594-e525389370aefc2e125a1a54e',
+        q: `${inputEl.value}`,
+        image_type: "photo",
+        orientation: "horizontal",
+        safesearch: true
+    })
 
-function fetchPhoto(id) {
-    return fetch(`https://pixabay.com/api/?key=41648594-e525389370aefc2e125a1a54e&q=${id}&image_type=photo`)
-        .then(response => response.json())
-}
-
-
-function submitForm() {
-
-    fetchPhoto(inputEl.value)
+    return fetch(`https://pixabay.com/api/?${urlFromPixaby}`)
         .then(response => {
-            markup(response)
-            console.log(response)
+            if (!response.ok) {
+                throw new Error(response.statusText);
+            }
+
+            return response.json()
         })
-        .catch(error => console.log(`${error} mamba`))
+        .catch(error => new Error(error))
 }
+
+
+function markup({ hits }) {
+    const typset = hits.map(item => `
+    <li class="gallery__item">
+    <a href="${item.largeImageURL}">
+    <img class="gallery--img" src="${item.webformatURL}" alt="${item.tags}" title="${item.tags}"/>
+    </a>
+<ul class="gallery__list--characters">
+  <p>likes: ${item.likes}</p>
+  <p>views: ${item.views}</p>
+  <p>comments: ${item.comments}</p>
+  <p>downloads: ${item.downloads}</p>
+</ul>
+    </li>`).join('')
+
+    galleryEl.innerHTML = typset
+}
+
+
+
+if (!document.querySelector('.gallery__item')) {
+    document.querySelector('.loader').style.display = "none"
+}
+
 
 
 formEl.addEventListener('submit', (event) => {
     event.preventDefault()
-    submitForm()
+
+    document.querySelector('.loader').style.display = "block"
+    promesUrl()
+        .then(response => {
+            markup(response)
+            gallery.refresh();
+            if (document.querySelector('.gallery__item')) {
+                document.querySelector('.loader').style.display = "none"
+            }
+            if (response.hits.length === 0) {
+                iziToast.error({
+                    title: 'Error',
+                    message: 'Sorry, there are no images matching your search query. Please try again!',
+                });
+                document.querySelector('.loader').style.display = "none"
+            }
+        })
+        .catch(error => new Error(error));
+    formEl.reset()
 })
