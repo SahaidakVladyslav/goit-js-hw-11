@@ -2,12 +2,14 @@ import iziToast from "izitoast";
 import "izitoast/dist/css/iziToast.min.css";
 import SimpleLightbox from "simplelightbox";
 import "simplelightbox/dist/simple-lightbox.min.css";
-
+// import axios from "axios"
 const formEl = document.querySelector('.js-search-form')
 const inputEl = document.querySelector('input')
 const galleryEl = document.querySelector('.gallery')
+const loaderEl = document.querySelector('.loader')
 
-let gallery = new SimpleLightbox('.gallery a', {
+// console.log(axios)
+const gallery = new SimpleLightbox('.gallery a', {
     captions: true,
     captionDelay: 250,
     fadeSpeed: 250,
@@ -16,7 +18,14 @@ let gallery = new SimpleLightbox('.gallery a', {
     captionPosition: 'bottom',
 });
 
-function promesUrl() {
+async function promesUrl() {
+
+
+
+
+
+
+
     const urlFromPixaby = new URLSearchParams({
         key: '41648594-e525389370aefc2e125a1a54e',
         q: `${inputEl.value}`,
@@ -25,19 +34,29 @@ function promesUrl() {
         safesearch: true
     })
 
-    return fetch(`https://pixabay.com/api/?${urlFromPixaby}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(response.statusText);
-            }
+    try {
+        const response = await fetch(`https://pixabay.com/api/?${urlFromPixaby}`)
+        const parsJson = await response.json()
 
-            return response.json()
-        })
-        .catch(error => new Error(error))
+        return parsJson
+    } catch (error) {
+        throw new Error(response.statusText);
+    }
 }
 
+async function response() {
+    try {
+        markup(await promesUrl())
+        gallery.refresh();
+        loaderSwitch()
+    } catch (error) {
+        console.log(new Error(error))
+    }
+
+}
 
 function markup({ hits }) {
+
     const typset = hits.map(item => `
     <li class="gallery__item">
     <a href="${item.largeImageURL}">
@@ -51,36 +70,47 @@ function markup({ hits }) {
 </ul>
     </li>`).join('')
 
-    galleryEl.innerHTML = typset
+    return galleryEl.innerHTML = typset
+}
+
+const loaderSwitch = () => {
+
+    loaderEl.classList.toggle('switcher')
+
+}
+
+const izitoast = async () => {
+
+    try {
+        const respons = await promesUrl()
+        if (respons.hits.length === 0) {
+
+            iziToast.error({
+                title: 'Error',
+                message: 'Sorry, there are no images matching your search query. Please try again!',
+            });
+
+        }
+    } catch (error) {
+        console.log(error)
+    }
+
 }
 
 
-
-if (!document.querySelector('.gallery__item')) {
-    document.querySelector('.loader').style.display = "none"
-}
+loaderSwitch();
 
 
 
 formEl.addEventListener('submit', (event) => {
     event.preventDefault()
+    loaderSwitch()
+    response()
+    izitoast()
 
-    document.querySelector('.loader').style.display = "block"
-    promesUrl()
-        .then(response => {
-            markup(response)
-            gallery.refresh();
-            if (document.querySelector('.gallery__item')) {
-                document.querySelector('.loader').style.display = "none"
-            }
-            if (response.hits.length === 0) {
-                iziToast.error({
-                    title: 'Error',
-                    message: 'Sorry, there are no images matching your search query. Please try again!',
-                });
-                document.querySelector('.loader').style.display = "none"
-            }
-        })
-        .catch(error => new Error(error));
+
     formEl.reset()
 })
+
+
+console.log('mamba')
